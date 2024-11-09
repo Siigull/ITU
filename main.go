@@ -1,11 +1,12 @@
 package main
 
 import (
-    "crypto/rand"
+    "math/rand"
     "encoding/base64"
     "net/http"
-
+    "time"
     "github.com/gin-gonic/gin"
+    // "fmt"
 )
 
 func generateRandomToken() string {
@@ -74,21 +75,21 @@ type GameStateAll struct {
 type Card struct {
     Suit         int `json:"suit"`
     Value        int `json:"value"`
-    SpecialValue int `json:"special_value"`
+    specialValue int 
 }
 
 var default_deck = []Card{
-    {Suit: 0, Value: 7, SpecialValue: 7}, {Suit: 0, Value: 8, SpecialValue: 8}, {Suit: 0, Value: 9, SpecialValue: 9}, {Suit: 0, Value: 10, SpecialValue: 14},
-    {Suit: 0, Value: 11, SpecialValue: 11}, {Suit: 0, Value: 12, SpecialValue: 12}, {Suit: 0, Value: 13, SpecialValue: 13}, {Suit: 0, Value: 14, SpecialValue: 15},
+    {Suit: 0, Value: 7, specialValue: 7}, {Suit: 0, Value: 8, specialValue: 8}, {Suit: 0, Value: 9, specialValue: 9}, {Suit: 0, Value: 10, specialValue: 14},
+    {Suit: 0, Value: 11, specialValue: 11}, {Suit: 0, Value: 12, specialValue: 12}, {Suit: 0, Value: 13, specialValue: 13}, {Suit: 0, Value: 14, specialValue: 15},
 
-    {Suit: 1, Value: 7, SpecialValue: 7}, {Suit: 1, Value: 8, SpecialValue: 8}, {Suit: 1, Value: 9, SpecialValue: 9}, {Suit: 1, Value: 10, SpecialValue: 14},
-    {Suit: 1, Value: 11, SpecialValue: 11}, {Suit: 1, Value: 12, SpecialValue: 12}, {Suit: 1, Value: 13, SpecialValue: 13}, {Suit: 1, Value: 14, SpecialValue: 15},
+    {Suit: 1, Value: 7, specialValue: 7}, {Suit: 1, Value: 8, specialValue: 8}, {Suit: 1, Value: 9, specialValue: 9}, {Suit: 1, Value: 10, specialValue: 14},
+    {Suit: 1, Value: 11, specialValue: 11}, {Suit: 1, Value: 12, specialValue: 12}, {Suit: 1, Value: 13, specialValue: 13}, {Suit: 1, Value: 14, specialValue: 15},
 
-    {Suit: 2, Value: 7, SpecialValue: 7}, {Suit: 2, Value: 8, SpecialValue: 8}, {Suit: 2, Value: 9, SpecialValue: 9}, {Suit: 2, Value: 10, SpecialValue: 14},
-    {Suit: 2, Value: 11, SpecialValue: 11}, {Suit: 2, Value: 12, SpecialValue: 12}, {Suit: 2, Value: 13, SpecialValue: 13}, {Suit: 2, Value: 14, SpecialValue: 15},
+    {Suit: 2, Value: 7, specialValue: 7}, {Suit: 2, Value: 8, specialValue: 8}, {Suit: 2, Value: 9, specialValue: 9}, {Suit: 2, Value: 10, specialValue: 14},
+    {Suit: 2, Value: 11, specialValue: 11}, {Suit: 2, Value: 12, specialValue: 12}, {Suit: 2, Value: 13, specialValue: 13}, {Suit: 2, Value: 14, specialValue: 15},
 
-    {Suit: 3, Value: 7, SpecialValue: 7}, {Suit: 3, Value: 8, SpecialValue: 8}, {Suit: 3, Value: 9, SpecialValue: 9}, {Suit: 3, Value: 10, SpecialValue: 14},
-    {Suit: 3, Value: 11, SpecialValue: 11}, {Suit: 3, Value: 12, SpecialValue: 12}, {Suit: 3, Value: 13, SpecialValue: 13}, {Suit: 3, Value: 14, SpecialValue: 15},
+    {Suit: 3, Value: 7, specialValue: 7}, {Suit: 3, Value: 8, specialValue: 8}, {Suit: 3, Value: 9, specialValue: 9}, {Suit: 3, Value: 10, specialValue: 14},
+    {Suit: 3, Value: 11, specialValue: 11}, {Suit: 3, Value: 12, specialValue: 12}, {Suit: 3, Value: 13, specialValue: 13}, {Suit: 3, Value: 14, specialValue: 15},
 }
 
 type UsersDeck struct {
@@ -98,31 +99,34 @@ type UsersDeck struct {
 
 type Game struct {
     Users []*User `json:"users"`
-    Hands []UserDeck `json:"hands"`
+    Hands []UsersDeck `json:"hands"`
     ID int `json:"id"`
     Running bool `json:"running"`
     Game_type string `json:"game_type"`
     state GameStateAll
 }
 
-func (*Game) init(self *Game) {
-    self.Hands = []Hands{}
-    var temp_deck []Card
+func (self *Game) init() {
+    self.Hands = []UsersDeck{}
+    temp_deck := make([]Card, len(default_deck))
     copy(temp_deck, default_deck)
 
     rand.Shuffle(len(temp_deck), func(i, j int) {
         temp_deck[i], temp_deck[j] = temp_deck[j], temp_deck[i]
     })
 
+    self.Hands = []UsersDeck{}
+
     var deal_arr = [][]int{{5,12}, {12,22}, {22,32}}
-    for i, _ := range self.users {
-        var user_i = (i + self.cur_player_index) % 3
-        append(self.Hands, UserDeck{User_ID:self.users[user_i], Hand:temp_deck[deal_arr[i][0]:deal_arr[i][1]]})
+    for i, _ := range self.Users {
+        var user_i = (i + self.state.cur_player_index) % 3
+        self.Hands = append(self.Hands, UsersDeck{User_ID:self.Users[user_i].ID, Hand:temp_deck[deal_arr[i][0]:deal_arr[i][1]]})
     }
 
-    self.attacker_index = (self.attacker_index + 1) % 3
-    self.cur_player_index = 0
-    self.state.game_state = StateChoice
+    self.Running = true
+    self.state.attacker_index = (self.state.attacker_index + 1) % 3
+    self.state.cur_player_index = self.state.attacker_index
+    self.state.game_state = STATE_CHOICE
     self.state.choice_state.state = STATE_CHOOSING_TRUMP
     self.state.choice_state.game_flek = false
     self.state.choice_state.seven_flek = false
@@ -130,18 +134,18 @@ func (*Game) init(self *Game) {
     self.state.choice_state.betting_round = 0 
 }
 
-func (*Game) next_player(self *Game) {
-    self.cur_player_index = (self.cur_player_index + 1) % 3
+func (self *Game) next_player() {
+    self.state.cur_player_index = (self.state.cur_player_index + 1) % 3
 }
 
-func (*Game) get_choices(self *Game) {
-    state = self.state
+func (self *Game) get_choices() []string {
+    state := self.state
 
     switch state.game_state{
         case STATE_CHOICE:
-            switch state.choice_state {
+            switch state.choice_state.state {
                 case STATE_CHOOSING_TRUMP:
-                    return "card"
+                    return []string{"card", "z lidu"}
 
                 case STATE_CHOOSING_GAME:
                     return []string{"game", "seven", "hundred", "hundred seven"}
@@ -159,7 +163,7 @@ func (*Game) get_choices(self *Game) {
                     }
 
                     if(len(bets) == 0) {
-                        return "next"
+                        return []string{"next"}
                     }
 
                     return bets
@@ -169,21 +173,23 @@ func (*Game) get_choices(self *Game) {
         case STATE_BETTING:
 
         case STATE_GAME:
-            return "card"
+            return []string{"card"}
 
         case STATE_END:
-            return "next game"
+            return []string{"next game"}
     }
+
+    return []string{"error"}
 }
 
-func (*Game) next_state(self *Game) {
-    state = self.state
+func (self *Game) next_state() {
+    state := self.state
     
     switch state.game_state {
-        case StateChoice:
-            switch state.choice_state {
+        case STATE_CHOICE:
+            switch state.choice_state.state {
                 case STATE_CHOOSING_TRUMP:
-                    state.choice_state = STATE_CHOOSING_GAME
+                    state.choice_state.state = STATE_CHOOSING_GAME
 
                 case STATE_CHOOSING_GAME:
                     self.next_player()
@@ -192,7 +198,7 @@ func (*Game) next_state(self *Game) {
 
 
                     self.next_player()
-                    if(self.cur_player_index == self.attacker_index) {
+                    if(self.state.cur_player_index == self.state.attacker_index) {
                         switch self.state.game_type {
                             case TYPE_GAME:
                                 if(self.state.choice_state.game_flek == false) {
@@ -217,17 +223,16 @@ func (*Game) next_state(self *Game) {
                                       self.state.game_state = STATE_GAME
                                 }
                         }
-                        if(self.state.choice_state.game_flek == false &&
-                           ) {
-
-                        }
+                        // if(self.state.choice_state.game_flek == false &&) {
+                            
+                        // }
                     }
             }
-        case StateBetting:
+        case STATE_BETTING:
 
-        case StateGame:
+        case STATE_GAME:
 
-        case StateEnd:
+        case STATE_END:
 
     }
 }
@@ -304,7 +309,7 @@ func start_game(c *gin.Context) {
         return;
     }
 
-    game.attacker_index = -1
+    game.state.attacker_index = -1
     game.init()
     
     for i, g := range games {
@@ -395,7 +400,7 @@ func poll_game(c *gin.Context) {
         return;
     }
 
-    found = false;
+    found := false;
     for _, u := range game.Users {
         if u.ID == user.ID {
             found = true;
@@ -408,21 +413,21 @@ func poll_game(c *gin.Context) {
         return
     }
 
-    var PollData return_val = return_val{Choices:nil, Game:game}
-
-    if(game.Users[cur_player_index].ID == user.ID) {
+    var return_val PollData = PollData{User_choices:nil, Game_data:*game}
+    
+    if(game.Users[game.state.cur_player_index].ID == user.ID) {
         return_val.User_choices = game.get_choices();
     }
 
     c.IndentedJSON(http.StatusOK, return_val)
 }
 
-func (*Game) play_choice(self *Game, choices []string) string {
-    state = self.state
+func (self *Game) play_choice(choices []string) string {
+    state := self.state
 
     switch state.game_state{
         case STATE_CHOICE:
-            switch state.choice_state {
+            switch state.choice_state.state {
                 case STATE_CHOOSING_TRUMP:
                     return "You have to choose a card"
 
@@ -466,38 +471,86 @@ func (*Game) play_choice(self *Game, choices []string) string {
             return "next game"
     }
 
-    self.next_state()
+    return "error"
 }
 
-func play_card(c *gin.Context) {
+func (self *Game) play_card(card Card) {
+    state := self.state
 
+    switch state.game_state{
+        case STATE_CHOICE:
+            switch state.choice_state.state {
+                case STATE_CHOOSING_TRUMP:
+                    return "You have to choose a card"
+
+                case STATE_CHOOSING_GAME:
+                    switch choices[0] {
+                        case "game":
+                            state.game_type = TYPE_GAME
+                        case "seven":
+                            state.game_type = TYPE_SEVEN
+                        case "hundred":
+                            state.game_type = TYPE_HUNDRED
+                        case "hundred seven":
+                            state.game_type = TYPE_HUNDRED_SEVEN
+
+                        default:
+                            return "Not a valid choice" 
+                    }
+
+                case STATE_BETS:
+                    for _, c := range choices {
+                        switch c {
+                            case "on game":
+                                state.choice_state.game_flek = true;
+                            case "on seven":
+                                state.choice_state.seven_flek = true;
+                            case "on hundred":
+                                state.choice_state.hundred_flek = true;
+
+                            default:
+                                return "Not a valid choice" 
+                        }
+                    }
+            }
+            
+        case STATE_BETTING:
+
+        case STATE_GAME:
+            return "card"
+
+        case STATE_END:
+            return "next game"
+    }
+
+    return "error"
 }
 
-type Choice struct {
-    Choices []string `json:"choices"`
+type CardChoice struct {
+    ChosenCard Card `json:"card"`
     GameData GameAuth `json:"game_auth"`
 }
 
-func parse_choice(c *gin.Context) {
-    var data Choice
+func parse_card(c *gin.Context) {
+    var data CardChoice
 
     if err := c.BindJSON(&data); err != nil {
         return
     }
 
-    game := find_game(data.Game_id)
+    game := find_game(data.GameData.Game_id)
     if (game == nil) {
         c.String(400, "Game not found");
         return;
     }
 
-    user := find_user(data.User_id)
+    user := find_user(data.GameData.User_id)
     if (user == nil) {
         c.String(400, "User not found");
         return;
     }
 
-    player_i = -1;
+    player_i := -1;
     for i, u := range game.Users {
         if u.ID == user.ID {
             player_i = i;
@@ -505,17 +558,62 @@ func parse_choice(c *gin.Context) {
         }
     }
 
-    if(player_i == false) {
+    if(player_i == -1) {
         c.String(http.StatusConflict, "You are not in this game")
         return
     }
 
-    if(player_i != game.cur_player_index) {
+    if(player_i != game.state.cur_player_index) {
         c.String(http.StatusConflict, "It is not your turn")
         return
     }
 
-    play_choice(data.Choices)
+    game.play_card(data.ChosenCard)
+}
+
+type StringChoice struct {
+    Choices []string `json:"choices"`
+    GameData GameAuth `json:"game_auth"`
+}
+
+func parse_choice(c *gin.Context) {
+    var data StringChoice
+
+    if err := c.BindJSON(&data); err != nil {
+        return
+    }
+
+    game := find_game(data.GameData.Game_id)
+    if (game == nil) {
+        c.String(400, "Game not found");
+        return;
+    }
+
+    user := find_user(data.GameData.User_id)
+    if (user == nil) {
+        c.String(400, "User not found");
+        return;
+    }
+
+    player_i := -1;
+    for i, u := range game.Users {
+        if u.ID == user.ID {
+            player_i = i;
+            break
+        }
+    }
+
+    if(player_i == -1) {
+        c.String(http.StatusConflict, "You are not in this game")
+        return
+    }
+
+    if(player_i != game.state.cur_player_index) {
+        c.String(http.StatusConflict, "It is not your turn")
+        return
+    }
+
+    game.play_choice(data.Choices)
 }
 
 func main() {

@@ -6,7 +6,7 @@ import (
     "net/http"
     "time"
     "github.com/gin-gonic/gin"
-    // "fmt"
+    "fmt"
 )
 
 func generateRandomToken() string {
@@ -33,7 +33,6 @@ type GameStateEnum int
 
 const (
     STATE_CHOICE GameStateEnum = iota 
-    STATE_BETTING
     STATE_GAME
     STATE_END
 )
@@ -51,6 +50,8 @@ type ChoiceStateEnum int
 
 const (
     STATE_CHOOSING_TRUMP ChoiceStateEnum = iota
+    STATE_THROW_AWAY1
+    STATE_THROW_AWAY2
     STATE_CHOOSING_GAME
     STATE_BETS
 )
@@ -98,34 +99,42 @@ type UsersDeck struct {
 }
 
 type Game struct {
-    Users []*User `json:"users"`
-    Hands []UsersDeck `json:"hands"`
+    Users  []*User `json:"users"`
+    Hands  []UsersDeck `json:"hands"`
+    Table  []Card `json:"table"`
+    Talons []UsersDeck `json:"talons"`
     ID int `json:"id"`
     Running bool `json:"running"`
     Game_type string `json:"game_type"`
+    Trump_card Card `json:"trump_card"`
+    temp_deck []Card
     state GameStateAll
 }
 
 func (self *Game) init() {
     self.Hands = []UsersDeck{}
-    temp_deck := make([]Card, len(default_deck))
-    copy(temp_deck, default_deck)
+    self.temp_deck = make([]Card, len(default_deck))
+    copy(self.temp_deck, default_deck)
 
-    rand.Shuffle(len(temp_deck), func(i, j int) {
-        temp_deck[i], temp_deck[j] = temp_deck[j], temp_deck[i]
+    rand.Shuffle(len(self.temp_deck), func(i, j int) {
+        self.temp_deck[i], self.temp_deck[j] = self.temp_deck[j], self.temp_deck[i]
     })
 
     self.Hands = []UsersDeck{}
+    self.Talons = []UsersDeck{}
+
+    self.state.attacker_index = (self.state.attacker_index + 1) % 3
+    self.state.cur_player_index = self.state.attacker_index
 
     var deal_arr = [][]int{{5,12}, {12,22}, {22,32}}
     for i, _ := range self.Users {
         var user_i = (i + self.state.cur_player_index) % 3
-        self.Hands = append(self.Hands, UsersDeck{User_ID:self.Users[user_i].ID, Hand:temp_deck[deal_arr[i][0]:deal_arr[i][1]]})
+        self.Talons = append(self.Talons, UsersDeck{User_ID:self.Users[user_i].ID, Hand:[]Card{}})
+        self.Hands = append(self.Hands, UsersDeck{User_ID:self.Users[user_i].ID, Hand:self.temp_deck[deal_arr[i][0]:deal_arr[i][1]]})
     }
-
+    
+    self.Trump_card = Card{}
     self.Running = true
-    self.state.attacker_index = (self.state.attacker_index + 1) % 3
-    self.state.cur_player_index = self.state.attacker_index
     self.state.game_state = STATE_CHOICE
     self.state.choice_state.state = STATE_CHOOSING_TRUMP
     self.state.choice_state.game_flek = false
@@ -139,13 +148,19 @@ func (self *Game) next_player() {
 }
 
 func (self *Game) get_choices() []string {
-    state := self.state
+    state := &self.state
 
     switch state.game_state{
         case STATE_CHOICE:
             switch state.choice_state.state {
                 case STATE_CHOOSING_TRUMP:
-                    return []string{"card", "z lidu"}
+                    return []string{"card"}
+                    
+                case STATE_THROW_AWAY1:
+                    return []string{"card"}
+                
+                case STATE_THROW_AWAY2:
+                    return []string{"card"}
 
                 case STATE_CHOOSING_GAME:
                     return []string{"game", "seven", "hundred", "hundred seven"}
@@ -168,9 +183,6 @@ func (self *Game) get_choices() []string {
 
                     return bets
             }
-                
-
-        case STATE_BETTING:
 
         case STATE_GAME:
             return []string{"card"}
@@ -180,61 +192,6 @@ func (self *Game) get_choices() []string {
     }
 
     return []string{"error"}
-}
-
-func (self *Game) next_state() {
-    state := self.state
-    
-    switch state.game_state {
-        case STATE_CHOICE:
-            switch state.choice_state.state {
-                case STATE_CHOOSING_TRUMP:
-                    state.choice_state.state = STATE_CHOOSING_GAME
-
-                case STATE_CHOOSING_GAME:
-                    self.next_player()
-
-                case STATE_BETS:
-
-
-                    self.next_player()
-                    if(self.state.cur_player_index == self.state.attacker_index) {
-                        switch self.state.game_type {
-                            case TYPE_GAME:
-                                if(self.state.choice_state.game_flek == false) {
-                                    self.state.game_state = STATE_GAME
-                                }
-                            case TYPE_SEVEN:
-                                if(self.state.choice_state.game_flek == false &&
-                                   self.state.choice_state.seven_flek == false) {
-
-                                    self.state.game_state = STATE_GAME
-                                }
-                            case TYPE_HUNDRED:
-                                if(self.state.choice_state.game_flek == false &&
-                                   self.state.choice_state.hundred_flek == false) {
-                                     
-                                     self.state.game_state = STATE_GAME
-                                }
-                            case TYPE_HUNDRED_SEVEN:
-                                if(self.state.choice_state.game_flek == false &&
-                                   self.state.choice_state.hundred_flek == false) {
-                                      
-                                      self.state.game_state = STATE_GAME
-                                }
-                        }
-                        // if(self.state.choice_state.game_flek == false &&) {
-                            
-                        // }
-                    }
-            }
-        case STATE_BETTING:
-
-        case STATE_GAME:
-
-        case STATE_END:
-
-    }
 }
 
 var games = []Game{
@@ -250,9 +207,9 @@ func list_users(c *gin.Context) {
 }
 
 func find_game(id int) *Game {
-    for _, g := range games {
+    for i, g := range games {
         if g.ID == id {
-            return &g
+            return &games[i]
         }
     }
     return nil;
@@ -422,65 +379,33 @@ func poll_game(c *gin.Context) {
     c.IndentedJSON(http.StatusOK, return_val)
 }
 
-func (self *Game) play_choice(choices []string) string {
-    state := self.state
-
-    switch state.game_state{
-        case STATE_CHOICE:
-            switch state.choice_state.state {
-                case STATE_CHOOSING_TRUMP:
-                    return "You have to choose a card"
-
-                case STATE_CHOOSING_GAME:
-                    switch choices[0] {
-                        case "game":
-                            state.game_type = TYPE_GAME
-                        case "seven":
-                            state.game_type = TYPE_SEVEN
-                        case "hundred":
-                            state.game_type = TYPE_HUNDRED
-                        case "hundred seven":
-                            state.game_type = TYPE_HUNDRED_SEVEN
-
-                        default:
-                            return "Not a valid choice" 
-                    }
-
-                case STATE_BETS:
-                    for _, c := range choices {
-                        switch c {
-                            case "on game":
-                                state.choice_state.game_flek = true;
-                            case "on seven":
-                                state.choice_state.seven_flek = true;
-                            case "on hundred":
-                                state.choice_state.hundred_flek = true;
-
-                            default:
-                                return "Not a valid choice" 
-                        }
-                    }
-            }
-            
-        case STATE_BETTING:
-
-        case STATE_GAME:
-            return "card"
-
-        case STATE_END:
-            return "next game"
+func (self *Game) no_flek() bool {
+    if (self.state.choice_state.game_flek == false &&
+        self.state.choice_state.seven_flek == false && 
+        self.state.choice_state.hundred_flek == false) {
+        
+        return true;
     }
-
-    return "error"
+    return false;
 }
 
-func (self *Game) play_card(card Card) {
-    state := self.state
+func (self* Game) clear_fleks() {
+    self.state.choice_state.game_flek = false;
+    self.state.choice_state.seven_flek = false;
+    self.state.choice_state.hundred_flek = false; 
+}
+
+func (self *Game) play_choice(choices []string) string {
+    state := &self.state
 
     switch state.game_state{
         case STATE_CHOICE:
             switch state.choice_state.state {
                 case STATE_CHOOSING_TRUMP:
+                    return "You have to choose a card"
+                case STATE_THROW_AWAY1:
+                    return "You have to choose a card"
+                case STATE_THROW_AWAY2:
                     return "You have to choose a card"
 
                 case STATE_CHOOSING_GAME:
@@ -497,33 +422,165 @@ func (self *Game) play_card(card Card) {
                         default:
                             return "Not a valid choice" 
                     }
+                    state.choice_state.state = STATE_BETS
+                    self.next_player()
 
                 case STATE_BETS:
-                    for _, c := range choices {
-                        switch c {
-                            case "on game":
-                                state.choice_state.game_flek = true;
-                            case "on seven":
-                                state.choice_state.seven_flek = true;
-                            case "on hundred":
-                                state.choice_state.hundred_flek = true;
+                    if (self.state.attacker_index == self.state.cur_player_index) {
+                        game_f := state.choice_state.game_flek
+                        seven_f := state.choice_state.seven_flek
+                        hundred_f := state.choice_state.hundred_flek
 
-                            default:
-                                return "Not a valid choice" 
+                        self.clear_fleks()
+
+                        for _, c := range choices {
+                            switch c {
+                                case "on game":
+                                    if(game_f) {
+                                        state.choice_state.game_flek = true;
+                                    } else {
+                                        return "Not a valid choice" 
+                                    }
+                                case "on seven":
+                                    if(seven_f) {
+                                        state.choice_state.seven_flek = true;
+                                    } else {
+                                        return "Not a valid choice" 
+                                    }
+                                case "on hundred":
+                                    if(hundred_f) {
+                                        state.choice_state.hundred_flek = true;
+                                    } else {
+                                        return "Not a valid choice" 
+                                    }
+    
+                                default:
+                                    return "Not a valid choice" 
+                            }
+                        }
+                    } else {
+                        for _, c := range choices {
+                            switch c {
+                                case "on game":
+                                    state.choice_state.game_flek = true;
+                                case "on seven":
+                                    state.choice_state.seven_flek = true;
+                                case "on hundred":
+                                    state.choice_state.hundred_flek = true;
+    
+                                default:
+                                    return "Not a valid choice" 
+                            }
+                        }
+                    }
+                    
+                    self.next_player()
+                    if (self.state.attacker_index == self.state.cur_player_index) {
+                        if (self.no_flek()) {
+                            state.game_state = STATE_GAME
                         }
                     }
             }
             
-        case STATE_BETTING:
-
         case STATE_GAME:
-            return "card"
+            return "You have to choose a card"
+
+        case STATE_END:
+            if (choices[0] == "next game") {
+                self.init()
+            }
+    }
+
+    return ""
+}
+
+func (self *Game) clear_table() {
+
+}
+
+func (self *Game) place_card(card Card) bool {
+    self.Table = append(self.Table, card) 
+
+    if (len(self.Table) == 3) {
+        return true;
+    }
+    
+    return false;
+}
+
+func (self *Game) next_round() {
+    // for i, el := range self.Table {
+    // }
+}
+
+func (self *Game) attacker_draw() {
+    self.Hands[0].Hand = append(self.Hands[0].Hand, self.temp_deck[0:5]...)
+}
+
+func (self *Game) card_throw_away(card Card) string {
+    found := false
+    for i, el := range self.Hands[0].Hand {
+        if (el.Suit == card.Suit && el.Value == card.Value) {
+            found = true
+            self.Hands[0].Hand = append(self.Hands[0].Hand[:i], self.Hands[0].Hand[i+1:]...)
+            break
+        }
+    }
+
+    if(found == false) {
+        return "This card is not yours"
+    }
+
+    self.Talons[1].Hand = append(self.Talons[1].Hand, card)
+
+    return ""
+}
+
+func (self *Game) play_card(card Card) string {
+    state := &self.state
+
+    fmt.Println(state)
+
+    switch state.game_state{
+        case STATE_CHOICE:
+            switch state.choice_state.state {
+                case STATE_CHOOSING_TRUMP:
+                    self.Trump_card = card;
+                    state.choice_state.state = STATE_THROW_AWAY1;
+                    self.attacker_draw()
+
+                case STATE_THROW_AWAY1:
+                    err := self.card_throw_away(card)
+                    if(err != "") {
+                        return err;
+                    }
+                    state.choice_state.state = STATE_THROW_AWAY2
+
+                case STATE_THROW_AWAY2:
+                    err := self.card_throw_away(card)
+                    if(err != "") {
+                        return err;
+                    }
+                    state.choice_state.state = STATE_CHOOSING_GAME 
+
+                case STATE_CHOOSING_GAME:
+                    return "You can't choose a card here"
+                case STATE_BETS:
+                    return "You can't choose a card here"
+            }
+            
+        case STATE_GAME:
+            if(self.place_card(card)) {
+                self.next_round()
+            } else {
+                self.next_player()
+            }
 
         case STATE_END:
             return "next game"
     }
 
-    return "error"
+    return ""
 }
 
 type CardChoice struct {
@@ -568,7 +625,29 @@ func parse_card(c *gin.Context) {
         return
     }
 
-    game.play_card(data.ChosenCard)
+    player_hand_i := -1
+    for i, el := range game.Hands {
+        if(el.User_ID == data.GameData.User_id) {
+            player_hand_i = i
+        }
+    }
+
+    found := false
+    for _, el := range game.Hands[player_hand_i].Hand {
+        if (el.Suit == data.ChosenCard.Suit && el.Value == data.ChosenCard.Value) {
+            found = true
+            break
+        }
+    }
+
+    if(found == false) {
+        c.String(http.StatusConflict, "This card is not yours")
+    }
+
+    err := game.play_card(data.ChosenCard)
+    if(err != "") {
+        c.String(http.StatusConflict, err)
+    }
 }
 
 type StringChoice struct {
@@ -613,7 +692,11 @@ func parse_choice(c *gin.Context) {
         return
     }
 
-    game.play_choice(data.Choices)
+    err := game.play_choice(data.Choices)
+
+    if(err != "") {
+        c.String(http.StatusConflict, err)
+    } 
 }
 
 func main() {

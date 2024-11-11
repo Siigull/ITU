@@ -1,6 +1,7 @@
 package main
 
 import (
+    "github.com/gin-contrib/cors"
     "math/rand"
     "encoding/base64"
     "net/http"
@@ -27,7 +28,8 @@ type User struct {
     Money int `json:"money"`
 }
 
-var users = []User{{ID:0, Name:"I'm everlasting", Token:generateRandomToken(), Money:69420},}
+var users = []User{{ID:0, Name:"I'm everlasting", Token:generateRandomToken(), Money:69420},
+                   {ID:1, Name:"User1", Token:generateRandomToken(), Money:-69}}
 	
 type GameStateEnum int
 
@@ -195,7 +197,10 @@ func (self *Game) get_choices() []string {
 }
 
 var games = []Game{
-    {Users: []*User{}, ID: 0},
+    {Users: []*User{&users[0], &users[1]}, ID: 0},
+    {Users: []*User{}, ID: 1},
+    {Users: []*User{}, ID: 2},
+    {Users: []*User{}, ID: 3},
 }
 
 func list_games(c *gin.Context) {
@@ -703,8 +708,12 @@ func main() {
     rand.Seed(time.Now().UnixNano())
 
     router := gin.Default()
+    
+    router.Use(cors.Default())
+
     router.GET("/games", list_games)
     router.GET("/users", list_users)
+    // TODO(Sigull): Add option to fetch only a single user
     router.GET("/join/:name", new_user)
 
     router.POST("/games/join", join_game)

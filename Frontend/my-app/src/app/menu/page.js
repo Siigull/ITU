@@ -8,10 +8,11 @@ import { generate_user_auth } from '../helper.js';
 export default function MainPage() {
   const router = useRouter();
   const search_params = useSearchParams();
-  var nickname = search_params.get("nickname");
+  var temp_nickname = search_params.get("nickname");
   var temp_token = search_params.get("token");
   var temp_id = parseInt(search_params.get("id"));
 
+  const [nickname, set_nickname] = useState(temp_nickname);
   const [user_id, set_user_id] = useState(temp_id);
   const [token, set_token] = useState(temp_token);
   const [balance, set_balance] = useState(0);
@@ -74,9 +75,18 @@ export default function MainPage() {
     if (response.ok) {
       localStorage.setItem('token', token);
       localStorage.setItem('user_id', user_id);
+      localStorage.setItem('nickname', nickname);
       router.push(`/game?game_id=${game_id}`);
     }
   }
+
+  useEffect(() =>{
+    if(!user_id) {
+       set_user_id(parseInt(localStorage.getItem('user_id')));
+       set_token(localStorage.getItem('token'));
+       set_nickname(localStorage.getItem('nickname'));
+   }
+  }, [user_id]);
 
   useEffect(() => {
     fetch_users();

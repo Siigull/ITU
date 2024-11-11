@@ -107,6 +107,7 @@ type Game struct {
     Talons []UsersDeck `json:"talons"`
     ID int `json:"id"`
     Running bool `json:"running"`
+    Betting bool `json:"betting"`
     Game_type string `json:"game_type"`
     Trump_card Card `json:"trump_card"`
     temp_deck []Card
@@ -131,12 +132,15 @@ func (self *Game) init() {
     var deal_arr = [][]int{{5,12}, {12,22}, {22,32}}
     for i, _ := range self.Users {
         var user_i = (i + self.state.cur_player_index) % 3
+        hand_copy := make([]Card, deal_arr[i][1] - deal_arr[i][0])
+        copy(hand_copy, self.temp_deck[deal_arr[i][0]:deal_arr[i][1]])
         self.Talons = append(self.Talons, UsersDeck{User_ID:self.Users[user_i].ID, Hand:[]Card{}})
-        self.Hands = append(self.Hands, UsersDeck{User_ID:self.Users[user_i].ID, Hand:self.temp_deck[deal_arr[i][0]:deal_arr[i][1]]})
+        self.Hands = append(self.Hands, UsersDeck{User_ID:self.Users[user_i].ID, Hand:hand_copy})
     }
     
     self.Trump_card = Card{}
     self.Running = true
+    self.Betting = false
     self.state.game_state = STATE_CHOICE
     self.state.choice_state.state = STATE_CHOOSING_TRUMP
     self.state.choice_state.game_flek = false
@@ -151,6 +155,10 @@ func (self *Game) next_player() {
 
 func (self *Game) get_choices() []string {
     state := &self.state
+
+    if(!self.Running) {
+        return []string{}
+    }
 
     switch state.game_state{
         case STATE_CHOICE:
@@ -168,20 +176,26 @@ func (self *Game) get_choices() []string {
                     return []string{"game", "seven", "hundred", "hundred seven"}
 
                 case STATE_BETS:
-                    var bets = []string{}
-                    if(state.choice_state.game_flek == false) {
-                        bets = append(bets, "on game");
-                    }
-                    if(state.choice_state.seven_flek == false) {
-                        bets = append(bets, "on seven");
-                    }
-                    if(state.choice_state.hundred_flek == false) {
-                        bets = append(bets, "on hundred");
-                    }
+                        var bets = []string{}
+                        if(state.choice_state.game_flek == false && 
+                        (state.game_type == TYPE_GAME ||
+                            state.game_type == TYPE_SEVEN)) {
+                            bets = append(bets, "on game");
+                        }
+                        if(state.choice_state.seven_flek == false &&
+                        (state.game_type == TYPE_SEVEN || 
+                            state.game_type == TYPE_HUNDRED_SEVEN)) {
+                            bets = append(bets, "on seven");
+                        }
+                        if(state.choice_state.hundred_flek == false &&
+                        (state.game_type == TYPE_HUNDRED ||
+                            state.game_type == TYPE_HUNDRED_SEVEN)) {
+                            bets = append(bets, "on hundred");
+                        }
 
-                    if(len(bets) == 0) {
-                        return []string{"next"}
-                    }
+                        if(len(bets) == 0) {
+                            return []string{"next"}
+                        }
 
                     return bets
             }
@@ -414,19 +428,29 @@ func (self *Game) play_choice(choices []string) string {
                     return "You have to choose a card"
 
                 case STATE_CHOOSING_GAME:
+                    fmt.Println(len(choices))
+                    if (len(choices) != 1) {
+                        return "Bad number of choices"
+                    }
+
                     switch choices[0] {
                         case "game":
                             state.game_type = TYPE_GAME
+                            self.Game_type = "game"
                         case "seven":
                             state.game_type = TYPE_SEVEN
+                            self.Game_type = "seven"
                         case "hundred":
                             state.game_type = TYPE_HUNDRED
+                            self.Game_type = "hundred"
                         case "hundred seven":
                             state.game_type = TYPE_HUNDRED_SEVEN
+                            self.Game_type = "hundred_seven"
 
                         default:
                             return "Not a valid choice" 
                     }
+                    self.Betting = true
                     state.choice_state.state = STATE_BETS
                     self.next_player()
 
@@ -437,6 +461,13 @@ func (self *Game) play_choice(choices []string) string {
                         hundred_f := state.choice_state.hundred_flek
 
                         self.clear_fleks()
+                        
+                        fmt.Println(len(choices))
+                        if(len(choices) == 0) {
+                            self.Betting = false
+                            state.game_state = STATE_GAME
+                            return ""
+                        }
 
                         for _, c := range choices {
                             switch c {
@@ -466,6 +497,7 @@ func (self *Game) play_choice(choices []string) string {
                     } else {
                         for _, c := range choices {
                             switch c {
+                                case "next":
                                 case "on game":
                                     state.choice_state.game_flek = true;
                                 case "on seven":
@@ -482,12 +514,18 @@ func (self *Game) play_choice(choices []string) string {
                     self.next_player()
                     if (self.state.attacker_index == self.state.cur_player_index) {
                         if (self.no_flek()) {
+                            self.Betting = false
                             state.game_state = STATE_GAME
                         }
+
+                        state.choice_state.game_flek = !state.choice_state.game_flek
+                        state.choice_state.seven_flek = !state.choice_state.seven_flek
+                        state.choice_state.hundred_flek = !state.choice_state.hundred_flek
                     }
             }
             
         case STATE_GAME:
+            self.Betting = false
             return "You have to choose a card"
 
         case STATE_END:
@@ -718,7 +756,7 @@ func main() {
 
     router.POST("/games/join", join_game)
     router.POST("/games/start", start_game)
-    router.GET("/games/poll", poll_game)
+    router.POST("/games/poll", poll_game)
     router.POST("/games/play/choice", parse_choice)
     router.POST("/games/play/card", parse_card)
 

@@ -2,8 +2,9 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { useState, useEffect } from 'react';
-import Money from '../Money.jsx';
-import use_window_size, { generate_user_auth } from '../helper.js';
+import Table from '../Table.jsx';
+import Users from '../Users.jsx';
+import use_window_size, { generate_user_auth, game_type_to_string, butt_style, get_card_src } from '../helper.js';
 
 export default function MainPage() {
     const router = useRouter();
@@ -57,10 +58,10 @@ export default function MainPage() {
         const element = document.getElementById(id);
         var color = element.style.color;
         
-        if(color == 'white') {
+        if(color == 'grey') {
             color = 'black';
         } else {
-            color = 'white';
+            color = 'grey';
         }
 
         element.style.color = color;
@@ -139,10 +140,6 @@ export default function MainPage() {
         }
     }
 
-    const get_card_src = (card_val) => {
-        return `/cards/${card_val.suit}-${card_val.value}.png`
-    }
-
     useEffect(() => {
         if(token != '') {
             start_interval();
@@ -187,18 +184,12 @@ export default function MainPage() {
     return(
         <div className="bg-background h-screen" style={{ padding: '2rem', textAlign: 'left' }}>
             <div className="flex h-full flex-col justify-between">
-                <div className="flex justify-between">
-                    {game.users?.map((item, index) => (
-                        <div key={index} className="flex flex-col">
-                            <div className="text-3xl text-black">{item.name}</div>
-                            <Money amount={item.money}></Money>
-                        </div>
-                    ))}         
-                </div>
+
+                <Users game={game} window_size={window_size} cur_index={user_index}></Users>
 
                 {game.running == false &&
                     <div>
-                        <button onClick={start_game}>Start game</button>
+                        <button className={butt_style} onClick={start_game}>Start game</button>
                     </div>
                 }
 
@@ -207,13 +198,13 @@ export default function MainPage() {
                         <div>
                             {game.running == true && choices.choices &&
                                 choices.choices.map((item, index) => (
-                                    <button key={index} style={{color:'white'}} id={index} className="pr-10" onClick={() => set_choice(item, index)}>{ item }</button>
+                                    <button className={butt_style + "pr-10"} key={index} style={{color:'grey'}} id={index} onClick={() => set_choice(item, index)}>{ item }</button>
                                 ))
                             }
                         </div>
                         <div>
                             {game.running == true && choices.choices != undefined && choices.choices.length > 0 &&
-                                <button onClick={send_choices}>Potvrdit</button>
+                                <button className={butt_style}onClick={send_choices}>Potvrdit</button>
                             }
                         </div>
                         <div>
@@ -221,6 +212,9 @@ export default function MainPage() {
                                 <h1>Play Card</h1>
                             }
                         </div>
+                        
+                        <Table game={game} window_size={window_size} cur_index={user_index}></Table>
+
                         <div className="pt-10" style={{display: 'flex', justifyContent:'center'}}>
                             {game.betting == true && 
                                 <img className="object-center" 
@@ -232,31 +226,41 @@ export default function MainPage() {
                     </div>
 
                     <div className="flex text-left">
-                        <button onClick={go_to_menu}>Odejít</button>
+                        <button className={butt_style}onClick={go_to_menu}>Odejít</button>
                     </div>
                 </div>
 
                 <div className="flex justify-between w-full h-1/2">
                     <div className="flex flex-col w-1/3 justify-end">
-                        <div className="bg-background_green rounded-3xl w-2/3 h-2/3 mt-8"></div>
+                        <div className="bg-background_green relative rounded-3xl w-3/4 h-1/3 md:h-1/2 xl:h-2/3 lg:3/5 mt-8">
+                            {game.talon && game.talon.map((item, index) => (
+                                <div className="content-center" key={index}>
+                                    <img className="h-3/4 w-auto object-cover" 
+                                        src={get_card_src(item)} id={item.suit + " " + item.spec}
+                                        style={{position: 'absolute', left: `${window_size.width /200 + index * 26}%`, bottom:"13%"}}
+                                        onClick={() => send_card(item.suit, item.value)}>
+                                    </img>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                     <div className="relative flex w-2/3">
                         {game.hands && game.hands[user_index].hand.map((item, index) => (
                             <div key={index}>
-                                {game.trump_card.suit == item.suit && game.trump_card.value == item.value &&
+                                { game.trump_card.suit == item.suit && game.trump_card.value == item.value && game.game_type == "" &&
                                     <div>
-                                        {game.betting == false && 
+                                        {game.betting == false &&
                                             <img className="rotate-90" 
-                                                src={get_card_src(item)} width={window_size.width/13} id={item.suit + " " + item.value}
+                                                src={get_card_src(item)} width={window_size.width/13} id={item.suit + " " + item.spec}
                                                 style={{position: 'absolute', left: `${index * 7}%`, bottom:'40%'}}
                                                 onClick={() => send_card(item.suit, item.value)}>
                                             </img>
                                         }
                                     </div>
                                 }
-                                {(game.trump_card.suit != item.suit || game.trump_card.value != item.value) &&
+                                { ((game.trump_card.suit != item.suit || game.trump_card.value != item.value) || game.game_type != "") &&
                                     <img className="transform hover:-translate-y-14 transition-transform duration-100 ease-in-out" 
-                                        src={get_card_src(item)} width={window_size.width/13} id={item.suit + " " + item.value}
+                                        src={get_card_src(item)} width={window_size.width/13} id={item.suit + " " + item.spec}
                                         style={{position: 'absolute', left: `${index * 7}%`, bottom:'5%'}}
                                         onClick={() => send_card(item.suit, item.value)}>
                                     </img>

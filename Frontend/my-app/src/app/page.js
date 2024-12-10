@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { NodeNextRequest } from 'next/dist/server/base-http/node';
+import { butt_style } from './helper.js';
 
 export default function NicknameForm() {
   const router = useRouter();
@@ -34,14 +35,14 @@ export default function NicknameForm() {
         <h1 className="text-2xl font-bold">Enter your nickname</h1>
         <form onSubmit={handleSubmit}>
           <div className="flex flex-col items-center space-y-4">
-            <input maxLength="20" cols="22" rows="1"
-              placeholder="Enter your nickname"
+            <input className="focus:border-background_green border-2 focus:outline-none focus:ring-0 rounded-md" maxLength="20" cols="22" rows="1"
+              placeholder=""
               value={nickname}
               onChange={(e) => set_nickname(e.target.value)}
               required
               style={{ resize: 'none', color:'black' }}
             />
-            <button type="submit">Confirm</button>
+            <button className="bg-transparent hover:bg-background_green text-background_green font-semibold hover:text-white py-2 px-4 border border-background_green hover:border-transparent rounded" type="submit">Confirm</button>
           </div>
         </form>
       </div>

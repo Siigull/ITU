@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { useState, useEffect } from 'react';
 import Money from '../Money.jsx'
-import { generate_user_auth } from '../helper.js';
+import { generate_user_auth, butt_style } from '../helper.js';
 
 export default function MainPage() {
   const router = useRouter();
@@ -134,8 +134,8 @@ export default function MainPage() {
                 ))}
               </tbody>
             </table>
-            <button >Nová hra</button>
-            <button onClick={fetch_games}>Přenačíst</button>
+            <button className={butt_style} >Nová hra</button>
+            <button className={butt_style} onClick={fetch_games}>Přenačíst</button>
           </div>
 
           <div className="flex items-end flex-col">
@@ -154,7 +154,7 @@ export default function MainPage() {
                 ))}
               </tbody>
             </table>
-            <button onClick={fetch_users}>Přenačíst</button>
+            <button className={butt_style} onClick={fetch_users}>Přenačíst</button>
           </div>
         </div>
         <h1>Welcome, {nickname}</h1>

@@ -43,8 +43,7 @@ export default function Table({ game, window_size, cur_index }) {
                   <img className="" 
                       src={get_card_src(item)} width={window_size.width/13} id={item.suit + " " + item.spec}
                       style={{position: 'absolute', left: `${35 + index * 10}%`, bottom:'50%', 
-                              transform: `rotate(108deg)`}}
-                      onClick={() => send_card(item.suit, item.value)}>
+                              transform: `rotate(108deg)`}}>
                   </img>
                 </div>
               }
@@ -53,8 +52,7 @@ export default function Table({ game, window_size, cur_index }) {
                   <img className="" 
                       src={get_card_src(item)} width={window_size.width/13} id={item.suit + " " + item.spec}
                       style={{position: 'absolute', left: `${35 + index * 10}%`, bottom:'40%', 
-                              transform: `rotate(-5deg)`}}
-                      onClick={() => send_card(item.suit, item.value)}>
+                              transform: `rotate(-5deg)`}}>
                   </img>
                 </div>
               }
@@ -63,8 +61,7 @@ export default function Table({ game, window_size, cur_index }) {
                   <img className="" 
                       src={get_card_src(item)} width={window_size.width/13} id={item.suit + " " + item.spec}
                       style={{position: 'absolute', left: `${35 + index * 10}%`, bottom:'50%', 
-                              transform: `rotate(80deg)`}}
-                      onClick={() => send_card(item.suit, item.value)}>
+                              transform: `rotate(80deg)`}}>
                   </img>
                 </div>
               }

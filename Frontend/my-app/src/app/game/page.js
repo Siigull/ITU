@@ -12,7 +12,7 @@ export default function MainPage() {
     var game_id = parseInt(search_params.get("game_id"));
     const [game, set_game] = useState({});
     const [user_id, set_user_id] = useState(-1);
-    const [user_index, set_user_index] = useState(0);
+    const [user_index, set_user_index] = useState(3);
     const [token, set_token] = useState('');
     const [window_width, set_windows_width] = useState(1920);
     const [choices, set_choices] = useState({});
@@ -185,7 +185,12 @@ export default function MainPage() {
         <div className="bg-background h-screen" style={{ padding: '2rem', textAlign: 'left' }}>
             <div className="flex h-full flex-col justify-between">
 
-                <Users game={game} window_size={window_size} cur_index={user_index}></Users>
+                {user_index > 2 &&
+                    <Users game={game} window_size={window_size} cur_index={0}></Users>
+                }
+                {user_index < 3 &&
+                    <Users game={game} window_size={window_size} cur_index={user_index}></Users>
+                }
 
                 {game.running == false &&
                     <div>
@@ -212,8 +217,12 @@ export default function MainPage() {
                                 <h1>Play Card</h1>
                             }
                         </div>
-                        
-                        <Table game={game} window_size={window_size} cur_index={user_index}></Table>
+                        {user_index > 2 &&
+                            <Table game={game} window_size={window_size} cur_index={0}></Table>
+                        }
+                        {user_index < 3 &&
+                            <Table game={game} window_size={window_size} cur_index={user_index}></Table>
+                        }
 
                         <div className="pt-10" style={{display: 'flex', justifyContent:'center'}}>
                             {game.betting == true && 
@@ -245,7 +254,13 @@ export default function MainPage() {
                         </div>
                     </div>
                     <div className="relative flex w-2/3">
-                        {game.hands && game.hands[user_index].hand.map((item, index) => (
+                        {user_index > 2 &&
+                            <h1
+                                style={{position: 'absolute', left: '30%', bottom:'25%'}}>
+                                Spectating
+                            </h1>
+                        }
+                        {game.hands && user_index < 3 && game.hands[user_index].hand.map((item, index) => (
                             <div key={index}>
                                 { game.trump_card.suit == item.suit && game.trump_card.value == item.value && game.game_type == "" &&
                                     <div>

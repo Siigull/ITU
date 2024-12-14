@@ -19,6 +19,19 @@ export default function MainPage() {
   const [games, set_games] = useState([]);
   const [users, set_users] = useState([]);
 
+  const create_game = async () => {
+    const response = await fetch(`http://localhost:8080/create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+
+    var parsed_response = await response.json();
+
+    fetch_games();
+  }
+
   const fetch_games = async () => {
     const response = await fetch(`http://localhost:8080/games`, {
       method: 'GET',
@@ -72,7 +85,7 @@ export default function MainPage() {
       body: JSON.stringify(generate_user_auth(user_id, game_id, token))
     });
 
-    if (response.ok) {
+    if (response.ok || await response.text() == "Game is full") {
       localStorage.setItem('token', token);
       localStorage.setItem('user_id', user_id);
       localStorage.setItem('nickname', nickname);
@@ -134,7 +147,7 @@ export default function MainPage() {
                 ))}
               </tbody>
             </table>
-            <button className={butt_style} >Nová hra</button>
+            <button className={butt_style} onClick={create_game} >Nová hra</button>
             <button className={butt_style} onClick={fetch_games}>Přenačíst</button>
           </div>
 

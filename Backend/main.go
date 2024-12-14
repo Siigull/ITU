@@ -31,8 +31,7 @@ type User struct {
 	Money int    `json:"money"`
 }
 
-var users = []User{{ID: 0, Name: "I'm everlasting", Token: generateRandomToken(), Money: 69420},
-	{ID: 1, Name: "User1", Token: generateRandomToken(), Money: -69}}
+var users = []User{{ID: 0, Name: "test_user", Token: generateRandomToken(), Money: 69420}}
 
 type GameStateEnum int
 
@@ -239,7 +238,7 @@ func (self *Game) get_choices() []string {
 }
 
 var games = []Game{
-	{Users: []*User{&users[0], &users[1]}, ID: 0},
+	{Users: []*User{}, ID: 0},
 	{Users: []*User{}, ID: 1},
 	{Users: []*User{}, ID: 2},
 	{Users: []*User{}, ID: 3},
@@ -362,6 +361,16 @@ func join_game(c *gin.Context) {
 			break
 		}
 	}
+}
+
+func new_game(c *gin.Context) {
+	last_id := games[len(games)-1].ID
+
+	game := Game{Users: []*User{}, ID: last_id + 1}
+
+	games = append(games, game)
+
+	c.IndentedJSON(http.StatusOK, game)
 }
 
 func new_user(c *gin.Context) {
@@ -601,7 +610,7 @@ func (self *Game) hand_eval() int {
 	next_player := (self.State.Cur_player_index + 1) % 3
 	max_card := self.Table[0]
 
-	for i := range len(self.Table) {
+	for i, _ := range self.Table {
 		cur_card := self.Table[i]
 		if self.compare_cards(cur_card, max_card) {
 			next_player = (self.State.Cur_player_index + i + 1) % 3
@@ -1131,8 +1140,8 @@ func main() {
 
 	router.GET("/games", list_games)
 	router.GET("/users", list_users)
-	// TODO(Sigull): Add option to fetch only a single user
 	router.GET("/join/:name", new_user)
+	router.POST("/create", new_game)
 
 	router.POST("/games/join", join_game)
 	router.POST("/games/start", start_game)

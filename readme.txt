@@ -1,4 +1,5 @@
 Nakonec byl tento projekt dělán jen jedním studentem, takže se nic nerozdělovalo
+Proto jsem také nepsal hlavičky souborů
 
 Celý projekt je také na githubu https://github.com/Siigull/ITU
 
